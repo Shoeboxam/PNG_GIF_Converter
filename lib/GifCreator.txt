@@ -1,0 +1,2 @@
+This tool is used to actually create the gif. The php script interprets and prepares files for this tool.
+https://github.com/Sybio/GifCreator
