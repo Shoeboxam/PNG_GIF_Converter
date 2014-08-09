@@ -3,12 +3,13 @@
 
 require 'lib/GifCreator/GifCreator.php';
 
-//TODO: Normalize timings
 
-$image_path = "prismarine_rough.png";
-$frametime = 1;
+$image_name = "sea_lantern.png";
+$frametime = 20;
 $tick_rate = 20;
-$interpolation_framecount = 15;
+$interpolation_framecount = 16;
+
+$image_path = "assets/$image_name";
 
 if (file_exists($image_path)) {
 
@@ -73,7 +74,6 @@ if (file_exists($image_path)) {
         $image_split[] = $image_buffer;
         $frametime_list_interp[] = $frametime_list[$index] / $interpolation_framecount;
       }
-      print_r($frametime_list[0]);
 
     } else {
       //Copy segments of animation strip into an image array based on frame order
@@ -88,7 +88,6 @@ if (file_exists($image_path)) {
     $frametime_list = $frametime_list_interp;
   }
 
-  print_r($frametime_list);
   $gc = new \GifCreator\GifCreator();
   //$image_split contains straight frames in variables
   $gc -> create($image_split, $frametime_list, 0); //0 is infinite loop
@@ -96,7 +95,7 @@ if (file_exists($image_path)) {
   $image_gif = $gc->getGif();
 
   //Output and save
-  $gif_path = str_replace('.png', '.gif', $image_path);
+  $gif_path = str_replace('.png', '.gif', "output/$image_name");
   file_put_contents($gif_path, $image_gif);
   echo "<img src='$gif_path' alt='Gif!'/>";
 
