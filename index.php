@@ -5,11 +5,12 @@ require 'lib/GifCreator/GifCreator.php';
 
 //TODO: Normalize timings
 
-$image_path = "redstone_lamp_on.png";
+$image_path = "prismarine_rough.png";
 $frametime = 20;
 $tick_rate = 20;
+$interpolation_framecount = 10;
 
-if (file_exists($image_path)){
+if (file_exists($image_path)) {
 
   $image = imagecreatefrompng($image_path);
 
@@ -44,46 +45,52 @@ if (file_exists($image_path)){
     $frameindex_list = range(0, $height / $width - 1);
     $frametime_list = array_fill(0, count($frameindex_list), $frametime);
   }
-}
 
-for ($index = 0; $index < count($frameindex_list); $index += 1){
+  $frameindex_length = count($frameindex_list); //Current value is important
+  for ($index = 0; $index < $frameindex_length; $index += 1){
 
-  //If extra information is encoded into the frame, split it apart
-  if (is_array($frameindex_list[$index])){
-    $frametime_list[$index] = $frameindex_list[$index]['time'];
-    $frameindex_list[$index] = $frameindex_list[$index]['index'];
-  }
+    //If extra information is encoded into the frame, split it apart
+    if (is_array($frameindex_list[$index])){
+      $frametime_list[$index] = $frameindex_list[$index]['time'];
+      $frameindex_list[$index] = $frameindex_list[$index]['index'];
+    }
 
-  //If interpolate is set, interpolate!
-  if (array_key_exists('interpolate', $image_properties['animation']) && $image_properties['animation']['interpolate']){
-    for ($opacity = 0; $opacity < 100; $opacity += 100 / $frametime) { //TODO: sinusoidal interpolation here
+    //If interpolate is set, interpolate!
+    if (array_key_exists('interpolate', $image_properties['animation']) && $image_properties['animation']['interpolate']){
+      for ($index_interp = 0; $index_interp < 1; $index_interp += (1 / $interpolation_framecount)) { //TODO: sinusoidal interpolation here
 
-      //Use current index as base, then merge next index at given opacity
-      $image_buffer = imagecopy($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index]), $width, $width);
-      imagecopymerge($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index + 1]), $width, $width, $opacity);
-      $image_split[] = $image_buffer;
+        //Smoothstep opacity
+        $opacity = $index_interp * $index_interp * (3 - 2 * $index_interp) * 100;
+
+        //Use current index as base, then merge next index at given opacity
+        $image_buffer = imagecreatetruecolor($width, $width);
+        imagecopy($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index]), $width, $width);
+        imagecopymerge($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index + 1]), $width, $width, $opacity);
+        $image_split[] = $image_buffer;
+      }
 
       //Insert intermediate values into frametime_list
-      array_splice($frametime_list, $index, $frametime_list[$index] / $opacity); //TODO: divisor accuracy, error testing
+      array_fill(0, $interpolation_framecount, ($frametime_list[$index] / $interpolation_framecount));
+      $frametime_list = array_splice($frametime_list, $index * $interpolation_framecount, $frametime_list[$index] / $opacity);
+
+    } else {
+      //Copy segments of animation strip into an image array based on frame order
+      $image_buffer = imagecreatetruecolor($width, $width);
+      imagecopy($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index]), $width, $width);
+      $image_split[] = $image_buffer;
     }
-  } else {
-    //Copy segments of animation strip into an image array based on frame order
-    $image_buffer = imagecreatetruecolor($width, $width);
-    imagecopy($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index]), $width, $width);
-    $image_split[] = $image_buffer;
   }
-}
 
-$gc = new \GifCreator\GifCreator();
-//$image_split contains straight frames in variables
-$gc -> create($image_split, $frametime_list, 0); //0 is infinite loop
+  $gc = new \GifCreator\GifCreator();
+  //$image_split contains straight frames in variables
+  $gc -> create($image_split, $frametime_list, 0); //0 is infinite loop
 
-$image_gif = $gc->getGif();
+  $image_gif = $gc->getGif();
 
-//Output and save
-$gif_path = str_replace('.png', '.gif', $image_path);
-file_put_contents($gif_path, $image_gif);
-echo "<img src='$gif_path' alt='Gif!'/>";
+  //Output and save
+  $gif_path = str_replace('.png', '.gif', $image_path);
+  file_put_contents($gif_path, $image_gif);
+  echo "<img src='$gif_path' alt='Gif!'/>";
 
 
 } else {
