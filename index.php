@@ -6,15 +6,16 @@ require 'lib/GifCreator/GifCreator.php';
 //TODO: Normalize timings
 
 $image_path = "prismarine_rough.png";
-$frametime = 20;
+$frametime = 1;
 $tick_rate = 20;
-$interpolation_framecount = 10;
+$interpolation_framecount = 15;
 
 if (file_exists($image_path)) {
 
   $image = imagecreatefrompng($image_path);
 
   $frametime_list = [];
+  $frametime_list_interp = [];
   $frameindex_list = [];
 
   $image_split = [];
@@ -46,8 +47,7 @@ if (file_exists($image_path)) {
     $frametime_list = array_fill(0, count($frameindex_list), $frametime);
   }
 
-  $frameindex_length = count($frameindex_list); //Current value is important
-  for ($index = 0; $index < $frameindex_length; $index += 1){
+  for ($index = 0; $index < count($frameindex_list); $index += 1){
 
     //If extra information is encoded into the frame, split it apart
     if (is_array($frameindex_list[$index])){
@@ -57,7 +57,7 @@ if (file_exists($image_path)) {
 
     //If interpolate is set, interpolate!
     if (array_key_exists('interpolate', $image_properties['animation']) && $image_properties['animation']['interpolate']){
-      for ($index_interp = 0; $index_interp < 1; $index_interp += (1 / $interpolation_framecount)) { //TODO: sinusoidal interpolation here
+      for ($index_interp = 0; $index_interp < 1; $index_interp += (1 / $interpolation_framecount)) {
 
         //Smoothstep opacity
         $opacity = $index_interp * $index_interp * (3 - 2 * $index_interp) * 100;
@@ -65,13 +65,15 @@ if (file_exists($image_path)) {
         //Use current index as base, then merge next index at given opacity
         $image_buffer = imagecreatetruecolor($width, $width);
         imagecopy($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index]), $width, $width);
-        imagecopymerge($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index + 1]), $width, $width, $opacity);
-        $image_split[] = $image_buffer;
-      }
 
-      //Insert intermediate values into frametime_list
-      array_fill(0, $interpolation_framecount, ($frametime_list[$index] / $interpolation_framecount));
-      $frametime_list = array_splice($frametime_list, $index * $interpolation_framecount, $frametime_list[$index] / $opacity);
+        $index_incremented = ($index + 1) % count($frameindex_list); //Wrap increment
+        imagecopymerge($image_buffer, $image, 0, 0, 0, ($width * $frameindex_list[$index_incremented]), $width, $width, $opacity);
+
+        //Save interpolated frame data
+        $image_split[] = $image_buffer;
+        $frametime_list_interp[] = $frametime_list[$index] / $interpolation_framecount;
+      }
+      print_r($frametime_list[0]);
 
     } else {
       //Copy segments of animation strip into an image array based on frame order
@@ -81,6 +83,12 @@ if (file_exists($image_path)) {
     }
   }
 
+  if (array_key_exists('interpolate', $image_properties['animation']) && $image_properties['animation']['interpolate']){
+    //Overwrite standard frametimes with the expanded interpolation frametime list
+    $frametime_list = $frametime_list_interp;
+  }
+
+  print_r($frametime_list);
   $gc = new \GifCreator\GifCreator();
   //$image_split contains straight frames in variables
   $gc -> create($image_split, $frametime_list, 0); //0 is infinite loop
@@ -91,7 +99,6 @@ if (file_exists($image_path)) {
   $gif_path = str_replace('.png', '.gif', $image_path);
   file_put_contents($gif_path, $image_gif);
   echo "<img src='$gif_path' alt='Gif!'/>";
-
 
 } else {
   echo "Error: Could not find $image_path";
