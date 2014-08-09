@@ -43,7 +43,6 @@ if (file_exists($image_path)){
 
   //Instantiate empty image array
   $image_split = array_fill(0, count($frameindex_list), imagecreatetruecolor($width, $width));
-
   if (!file_exists('Temp')) {
     mkdir('Temp');
   }
@@ -77,7 +76,6 @@ if (file_exists($image_path)){
   foreach ($frame_path_list as $frame_path){
     unlink($frame_path);
   }
-
   rmdir('Temp');
 
   //Output and save
